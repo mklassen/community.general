@@ -117,7 +117,7 @@ import re
 
 def read_certificate_fingerprint(module, openssl_bin, certificate_path):
     current_certificate_fingerprint_cmd = [openssl_bin, "x509", "-noout", "-in", certificate_path, "-fingerprint", "-sha256"]
-    (rc, current_certificate_fingerprint_out, current_certificate_fingerprint_err) = run_commands(module, current_certificate_fingerprint_cmd)
+    (rc, current_certificate_fingerprint_out, current_certificate_fingerprint_err) = run_commands(module, current_certificate_fingerprint_cmd, check_rf=False)
     if rc != 0:
         return module.fail_json(msg=current_certificate_fingerprint_out,
                                 err=current_certificate_fingerprint_err,
@@ -137,7 +137,7 @@ def read_certificate_fingerprint(module, openssl_bin, certificate_path):
 
 def read_stored_certificate_fingerprint(module, keytool_bin, alias, keystore_path, keystore_password):
     stored_certificate_fingerprint_cmd = [keytool_bin, "-list", "-alias", alias, "-keystore", keystore_path, "-storepass", keystore_password, "-v"]
-    (rc, stored_certificate_fingerprint_out, stored_certificate_fingerprint_err) = run_commands(module, stored_certificate_fingerprint_cmd)
+    (rc, stored_certificate_fingerprint_out, stored_certificate_fingerprint_err) = run_commands(module, stored_certificate_fingerprint_cmd, check_rc=False)
     if rc != 0:
         if "keytool error: java.lang.Exception: Alias <%s> does not exist" % alias not in stored_certificate_fingerprint_out:
             return module.fail_json(msg=stored_certificate_fingerprint_out,
@@ -168,12 +168,22 @@ def create_file(path, content):
     return path
 
 
+def get_file_or_content(data):
+    try:
+        with open(data, 'r') as f:
+            return f.read()
+    except EnvironmentError as e:
+        if e.errno != errno.ENOENT:
+            raise
+        return data
+
+
 def create_tmp_certificate(module):
-    return create_file("/tmp/%s.crt" % module.params['name'], module.params['certificate'])
+    return create_file("/tmp/%s.crt" % module.params['name'], get_file_or_content(module.params['certificate']))
 
 
 def create_tmp_private_key(module):
-    return create_file("/tmp/%s.key" % module.params['name'], module.params['private_key'])
+    return create_file("/tmp/%s.key" % module.params['name'], get_file_or_content(module.params['private_key']))
 
 
 def cert_changed(module, openssl_bin, keytool_bin, keystore_path, keystore_pass, alias):
@@ -212,9 +222,9 @@ def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, 
                 cmd_stdin = "%s\n" % keypass
 
             cmd_stdin += "%s\n%s" % (password, password)
-            (rc, export_p12_out, export_p12_err) = run_commands(module, export_p12_cmd, data=cmd_stdin)
+            (rc, export_p12_out, export_p12_err) = run_commands(module, export_p12_cmd, data=cmd_stdin, check_rc=False)
             if rc != 0:
-                return module.fail_json(msg=export_p12_out,
+                return module.fail_json(msg=export_p12_out + ' ' + export_p12_err,
                                         rc=rc,
                                         cmd=export_p12_cmd)
 
@@ -226,7 +236,7 @@ def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, 
                                    "-deststorepass", password,
                                    "-srcstorepass", password,
                                    "-noprompt"]
-            (rc, import_keystore_out, import_keystore_err) = run_commands(module, import_keystore_cmd, data=None)
+            (rc, import_keystore_out, import_keystore_err) = run_commands(module, import_keystore_cmd, data=None, check_rc=False)
             if rc == 0:
                 update_jks_perm(module, keystore_path)
                 return module.exit_json(changed=True,
