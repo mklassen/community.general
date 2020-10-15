@@ -117,7 +117,7 @@ import re
 
 def read_certificate_fingerprint(module, openssl_bin, certificate_path):
     current_certificate_fingerprint_cmd = [openssl_bin, "x509", "-noout", "-in", certificate_path, "-fingerprint", "-sha256"]
-    (rc, current_certificate_fingerprint_out, current_certificate_fingerprint_err) = run_commands(module, current_certificate_fingerprint_cmd, check_rf=False)
+    (rc, current_certificate_fingerprint_out, current_certificate_fingerprint_err) = run_commands(module, current_certificate_fingerprint_cmd, check_rc=False)
     if rc != 0:
         return module.fail_json(msg=current_certificate_fingerprint_out,
                                 err=current_certificate_fingerprint_err,
