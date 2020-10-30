@@ -975,7 +975,7 @@ def main():
         otp_policy_look_ahead_window=dict(type='int', aliases=['otpPolicyLookAheadWindow']),
         otp_policy_period=dict(type='int', aliases=['otpPolicyPeriod']),
         otp_policy_type=dict(aliases=['otpPolicyType'], choices=['totp', 'hotp']),
-        password_policy=dict(aliases=['passwordPolicy']),
+        password_policy=dict(aliases=['passwordPolicy'], no_log=False),
         permanent_lockout=dict(type='bool', aliases=['permanentLockout']),
         quick_login_check_milli_seconds=dict(type='int', aliases=['quickLoginCheckMilliSeconds']),
         refresh_token_max_reuse=dict(type='int', aliases=['refreshTokenMaxReuse']),
@@ -985,7 +985,7 @@ def main():
         remember_me=dict(type='bool', aliases=['rememberMe']),
         required_credentials=dict(type='list', elements='str', aliases=['requiredCredentials']),
         reset_credentials_flow=dict(aliases=['resetCredentialsFlow']),
-        reset_password_allowed=dict(type='bool', aliases=['resetPasswordAllowed']),
+        reset_password_allowed=dict(type='bool', aliases=['resetPasswordAllowed'], no_log=False),
         revoke_refresh_token=dict(type='bool', aliases=['revokeRefreshToken']),
         smtp_server=dict(type='dict', aliases=['smtpServer'], options={
             'auth': dict(type='bool'),
