@@ -64,6 +64,11 @@ options:
         required: false
         type: bool
         default: 'no'
+    type:
+        description:
+          - Type of the keystore to be generated.
+        required: false
+        default: 'JKS'
 requirements: [openssl, keytool]
 author: Guillaume Grossetie (@Mogztter)
 extends_documentation_fragment:
@@ -205,7 +210,7 @@ def cert_changed(module, openssl_bin, keytool_bin, keystore_path, keystore_pass,
         os.remove(certificate_path)
 
 
-def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass):
+def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type):
     if module.check_mode:
         module.exit_json(changed=True)
     else:
@@ -239,6 +244,7 @@ def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, 
 
             import_keystore_cmd = [keytool_bin, "-importkeystore",
                                    "-destkeystore", keystore_path,
+                                   "-deststoretype", keystore_type,
                                    "-srckeystore", keystore_p12_path,
                                    "-srcstoretype", "pkcs12",
                                    "-alias", name,
@@ -278,22 +284,23 @@ def process_jks(module):
     password = module.params['password']
     keypass = module.params['private_key_passphrase']
     keystore_path = module.params['dest']
+    keystore_type = module.params['type']
     force = module.params['force']
     openssl_bin = module.get_bin_path('openssl', True)
     keytool_bin = module.get_bin_path('keytool', True)
 
     if os.path.exists(keystore_path):
         if force:
-            create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass)
+            create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type)
         else:
             if cert_changed(module, openssl_bin, keytool_bin, keystore_path, password, name):
-                create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass)
+                create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type)
             else:
                 if not module.check_mode:
                     update_jks_perm(module, keystore_path)
                 return module.exit_json(changed=False)
     else:
-        create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass)
+        create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type)
 
 
 class ArgumentSpec(object):
