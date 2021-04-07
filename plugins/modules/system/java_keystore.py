@@ -11,7 +11,7 @@ __metaclass__ = type
 DOCUMENTATION = '''
 ---
 module: java_keystore
-short_description: Create or delete a Java keystore in JKS format.
+short_description: Create, modify or delete a Java keystore in JKS format.
 description:
      - Create or delete a Java keystore in JKS format for a given certificate.
 options:
@@ -29,7 +29,7 @@ options:
         type: str
         description:
           - Private key that should be used to create the key store.
-        required: true
+        required: false
     private_key_passphrase:
         description:
           - Pass phrase for reading the private key, if required.
@@ -197,7 +197,10 @@ def create_tmp_certificate(module):
 
 
 def create_tmp_private_key(module):
-    return create_file("/tmp/%s.key" % module.params['name'], get_file_or_content(module.params['private_key']))
+    if module.params['private_key']:
+        return create_file("/tmp/%s.key" % module.params['name'], get_file_or_content(module.params['private_key']))
+    else:
+        return None
 
 
 def cert_changed(module, openssl_bin, keytool_bin, keystore_path, keystore_pass, alias):
@@ -205,21 +208,49 @@ def cert_changed(module, openssl_bin, keytool_bin, keystore_path, keystore_pass,
     try:
         current_certificate_fingerprint = read_certificate_fingerprint(module, openssl_bin, certificate_path)
         stored_certificate_fingerprint = read_stored_certificate_fingerprint(module, keytool_bin, alias, keystore_path, keystore_pass)
-        return current_certificate_fingerprint != stored_certificate_fingerprint
+        return \
+            current_certificate_fingerprint != stored_certificate_fingerprint, \
+            stored_certificate_fingerprint is not None
     finally:
         os.remove(certificate_path)
 
 
-def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type):
-    if module.check_mode:
-        module.exit_json(changed=True)
-    else:
-        certificate_path = create_tmp_certificate(module)
-        private_key_path = create_tmp_private_key(module)
-        try:
-            if os.path.exists(keystore_path):
-                os.remove(keystore_path)
+def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type='JKS', force=False):
 
+    def delete_entry(alias):
+        # delete the entry
+        delete_entry_cmd = [keytool_bin, "-delete",
+                            "-keystore", keystore_path,
+                            "-storepass", password,
+                            "-storetype", keystore_type,
+                            "-alias", alias,
+                            "-noprompt"]
+        return run_commands(module, delete_entry_cmd, data=None, check_rc=False)
+
+    if os.path.exists(keystore_path):
+        _cert_changed, _cert_exists = cert_changed(module, openssl_bin, keytool_bin, keystore_path, password, name)
+        if _cert_changed or force:
+            if module.check_mode:
+                return module.exit_json(changed=True)
+            if _cert_exists:
+                # delete the entry being processed
+                (rc, delete_entry_out, delete_entry_err) = delete_entry(name)
+                if rc != 0:
+                    return module.fail_json(msg=delete_entry_out,
+                                            rc=rc,
+                                            cmd=delete_entry_err)
+        else:
+            if not module.check_mode:
+                update_jks_perm(module, keystore_path)
+            return module.exit_json(changed=False)
+    elif module.check_mode:
+        return module.exit_json(changed=True)
+
+    certificate_path = create_tmp_certificate(module)
+    private_key_path = create_tmp_private_key(module)
+    try:
+
+        if private_key_path:
             keystore_p12_path = "/tmp/keystore.p12"
             if os.path.exists(keystore_p12_path):
                 os.remove(keystore_p12_path)
@@ -251,20 +282,59 @@ def create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, 
                                    "-deststorepass", password,
                                    "-srcstorepass", password,
                                    "-noprompt"]
-            (rc, import_keystore_out, import_keystore_err) = run_commands(module, import_keystore_cmd, data=None, check_rc=False)
-            if rc == 0:
-                update_jks_perm(module, keystore_path)
-                return module.exit_json(changed=True,
-                                        msg=import_keystore_out,
-                                        rc=rc,
-                                        cmd=import_keystore_cmd,
-                                        stdout_lines=import_keystore_out)
-            else:
-                return module.fail_json(msg=import_keystore_out,
-                                        rc=rc,
-                                        cmd=import_keystore_cmd)
-        finally:
-            os.remove(certificate_path)
+        else:
+            if not os.path.exists(keystore_path):
+                # create an empty keystore
+
+                # create keystore with bogus certificate
+                new_keystore_cmd = [keytool_bin, "-genkey",
+                                    "-keystore", keystore_path,
+                                    "-storepass", password,
+                                    "-storetype", keystore_type,
+                                    "-alias", "tmp",
+                                    "-dname", "CN=dummy,OU=dummy,O=dummy,C=ca",
+                                    "-keypass", "tmptmp",
+                                    "-noprompt"]
+
+                (rc, new_keystore_out, new_keystore_err) = run_commands(module, new_keystore_cmd,
+                                                                        data=None, check_rc=False)
+                if rc == 0:
+                    update_jks_perm(module, keystore_path)
+                else:
+                    return module.fail_json(msg=new_keystore_out,
+                                            rc=rc,
+                                            cmd=new_keystore_err + '/n' + ' '.join(new_keystore_cmd))
+
+                # delete the bogus certificate
+                (rc, delete_entry_out, delete_entry_err) = delete_entry("tmp")
+                if rc != 0:
+                    return module.fail_json(msg=delete_entry_out,
+                                            rc=rc,
+                                            cmd=delete_entry_err)
+
+            import_keystore_cmd = [keytool_bin, "-import",
+                                   "-keystore", keystore_path,
+                                   "-storepass", password,
+                                   "-storetype", keystore_type,
+                                   "-alias", name,
+                                   "-file", certificate_path,
+                                   "-noprompt"]
+
+        (rc, import_keystore_out, import_keystore_err) = run_commands(module, import_keystore_cmd, data=None, check_rc=False)
+        if rc == 0:
+            update_jks_perm(module, keystore_path)
+            return module.exit_json(changed=True,
+                                    msg=import_keystore_out,
+                                    rc=rc,
+                                    cmd=import_keystore_cmd,
+                                    stdout_lines=import_keystore_out)
+        else:
+            return module.fail_json(msg=import_keystore_out,
+                                    rc=rc,
+                                    cmd=import_keystore_cmd)
+    finally:
+        os.remove(certificate_path)
+        if private_key_path:
             os.remove(private_key_path)
 
 
@@ -280,27 +350,17 @@ def update_jks_perm(module, keystore_path):
 
 
 def process_jks(module):
-    name = module.params['name']
-    password = module.params['password']
-    keypass = module.params['private_key_passphrase']
-    keystore_path = module.params['dest']
-    keystore_type = module.params['type']
-    force = module.params['force']
-    openssl_bin = module.get_bin_path('openssl', True)
-    keytool_bin = module.get_bin_path('keytool', True)
-
-    if os.path.exists(keystore_path):
-        if force:
-            create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type)
-        else:
-            if cert_changed(module, openssl_bin, keytool_bin, keystore_path, password, name):
-                create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type)
-            else:
-                if not module.check_mode:
-                    update_jks_perm(module, keystore_path)
-                return module.exit_json(changed=False)
-    else:
-        create_jks(module, name, openssl_bin, keytool_bin, keystore_path, password, keypass, keystore_type)
+    create_jks(
+        module,
+        module.params['name'],
+        module.get_bin_path('openssl', True),
+        module.get_bin_path('keytool', True),
+        module.params['dest'],
+        module.params['password'],
+        module.params['private_key_passphrase'],
+        module.params['type'],
+        module.params['force']
+    )
 
 
 class ArgumentSpec(object):
@@ -310,11 +370,12 @@ class ArgumentSpec(object):
         argument_spec = dict(
             name=dict(required=True),
             certificate=dict(required=True, no_log=True),
-            private_key=dict(required=True, no_log=True),
+            private_key=dict(required=False, no_log=True),
             password=dict(required=True, no_log=True),
             dest=dict(required=True, type='path'),
             force=dict(required=False, default=False, type='bool'),
-            private_key_passphrase=dict(required=False, no_log=True, type='str')
+            private_key_passphrase=dict(required=False, no_log=True, type='str'),
+            type=dict(required=False, default='JKS'),
         )
         self.argument_spec = argument_spec
 
