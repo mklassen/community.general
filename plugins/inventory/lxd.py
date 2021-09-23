@@ -538,6 +538,9 @@ class InventoryModule(BaseInventoryPlugin):
         if 'inventory' not in self.data:
             self.data['inventory'] = {}
 
+        if 'containers' not in self.data:
+            return
+
         for container_name in self.data['containers']:
             self._set_data_entry(container_name, 'os', self._get_data_entry(
                 'containers/{0}/containers/metadata/config/image.os'.format(container_name)))
@@ -635,14 +638,14 @@ class InventoryModule(BaseInventoryPlugin):
             self.inventory.add_host(container_name)
             # add network informations
             self.build_inventory_network(container_name)
-            # add os
-            self.inventory.set_variable(container_name, 'ansible_lxd_os', self._get_data_entry('inventory/{0}/os'.format(container_name)).lower())
-            # add release
-            self.inventory.set_variable(container_name, 'ansible_lxd_release', self._get_data_entry('inventory/{0}/release'.format(container_name)).lower())
-            # add profile
-            self.inventory.set_variable(container_name, 'ansible_lxd_profile', self._get_data_entry('inventory/{0}/profile'.format(container_name)))
-            # add state
-            self.inventory.set_variable(container_name, 'ansible_lxd_state', self._get_data_entry('inventory/{0}/state'.format(container_name)).lower())
+            # add os, release, profile, and state
+            for name in ('os', 'release', 'profile', 'state'):
+                value = self._get_data_entry(f'inventory/{container_name}/{name}')
+                # profile can be list, but singleton is expected
+                if isinstance(value, list):
+                    value = value[0]
+                if value:
+                    self.inventory.set_variable(container_name, f'ansible_lxd_{name}', value.lower())
             # add location information
             if self._get_data_entry('inventory/{0}/location'.format(container_name)) != "none":  # wrong type by lxd 'none' != 'None'
                 self.inventory.set_variable(container_name, 'ansible_lxd_location', self._get_data_entry('inventory/{0}/location'.format(container_name)))
