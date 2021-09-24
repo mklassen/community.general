@@ -283,6 +283,8 @@ class InventoryModule(BaseInventoryPlugin):
         for url in urls:
             try:
                 socket_connection = LXDClient(url, self.client_key, self.client_cert, self.debug)
+                if self.trust_password:
+                    socket_connection.authenticate(self.trust_password)
                 return socket_connection
             except LXDClientException as err:
                 error_storage[url] = err
