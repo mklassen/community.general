@@ -104,6 +104,10 @@ DOCUMENTATION = r'''
             - Create groups by the following keywords C(location), C(network_range), C(os), C(pattern), C(profile), C(release), C(type), C(vlanid).
             - See example for syntax.
             type: dict
+        vars:
+            description:
+            - Dictionary of variables to add to the inventory
+            type: dict
 '''
 
 EXAMPLES = '''
@@ -731,6 +735,9 @@ class InventoryModule(BaseInventoryPlugin):
             self.inventory.set_variable(
                 instance_name, 'ansible_lxd_project', make_unsafe(self._get_data_entry('inventory/{0}/project'.format(instance_name))))
 
+            for key, value in getattr(self, 'vars', dict()).items():
+                self.inventory.set_variable(instance_name, key, value)
+
     def build_inventory_groups_location(self, group_name):
         """create group by attribute: location
 
@@ -1120,5 +1127,11 @@ class InventoryModule(BaseInventoryPlugin):
         except Exception as err:
             raise AnsibleParserError(
                 'All correct options required: {0}'.format(to_native(err)))
+
+        try:
+            self.vars = self.get_option('vars')
+        except Exception:
+            self.vars = dict()
+
         # Call our internal helper to populate the dynamic inventory
         self._populate()
