@@ -250,6 +250,8 @@ class InventoryModule(BaseInventoryPlugin):
         for url in urls:
             try:
                 socket_connection = LXDClient(url, self.client_key, self.client_cert, self.debug)
+                if self.trust_password:
+                    socket_connection.authenticate(self.trust_password)
                 return socket_connection
             except LXDClientException as err:
                 error_storage[url] = err
@@ -957,6 +959,7 @@ class InventoryModule(BaseInventoryPlugin):
             raise AnsibleParserError(
                 'All correct options required: {0}'.format(to_native(err)))
 
+        self.trust_password = str(self.templar.template(self.trust_password, disable_lookups=False))
         try:
             self.vars = self.get_option('vars')
         except:
