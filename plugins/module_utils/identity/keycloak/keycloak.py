@@ -58,9 +58,6 @@ URL_CLIENTTEMPLATES = "{url}/admin/realms/{realm}/client-templates"
 URL_GROUPS = "{url}/admin/realms/{realm}/groups"
 URL_GROUP = "{url}/admin/realms/{realm}/groups/{groupid}"
 
-URL_COMPONENT = "{url}/admin/realms/{realm}/components/{id}"
-URL_COMPONENTS = "{url}/admin/realms/{realm}/components"
-
 URL_CLIENTSCOPES = "{url}/admin/realms/{realm}/client-scopes"
 URL_CLIENTSCOPE = "{url}/admin/realms/{realm}/client-scopes/{id}"
 URL_CLIENTSCOPE_PROTOCOLMAPPERS = "{url}/admin/realms/{realm}/client-scopes/{id}/protocol-mappers/models"
@@ -301,103 +298,6 @@ class KeycloakAPI(object):
         except Exception as e:
             self.module.fail_json(msg='Could not delete realm %s: %s' % (realm, str(e)),
                                   exception=traceback.format_exc())
-
-    def get_components(self, parent=None, type=None, name=None, realm='master'):
-        """ Get list of component representations for components in a realm
-
-        :param realm: realm for components to be queried
-        :param parent: parent component, usually the realm name, optional
-        :param type: type of component, for instance "org.keycloak.storage.UserStorageProvider", optional
-        :param name: name of component, optional
-        :return: list of dicts containing component representations
-        """
-        url = URL_COMPONENTS.format(url=self.baseurl, id=id, realm=realm)
-        if parent is not None or type is not None or name is not None:
-            url += '?'
-        if parent is not None:
-            url += 'parent=%s' % parent
-        if type is not None:
-            url += 'type=%s' % type
-        if name is not None:
-            url += 'name=%s' % name
-
-        try:
-            return json.load(open_url(url, method='GET', headers=self.restheaders, validate_certs=self.validate_certs))
-        except ValueError as e:
-            self.module.fail_json(
-                msg='API returned incorrect JSON when trying to obtain compontent representations for realm %s: %s'
-                    % (realm, str(e)))
-        except Exception as e:
-            self.module.fail_json(msg='Could not obtain component representations for realm %s: %s' % (realm, str(e)))
-
-    def get_component_by_id(self, id, realm='master'):
-        """ Obtain component representation by ID
-
-        :param id: id (not name) of component to be queried
-        :param realm: component from this realm
-        :return: dict of component representation or None if none matching exist
-        """
-        url = URL_COMPONENT.format(url=self.baseurl, id=id, realm=realm)
-
-        try:
-            return json.load(open_url(url, method='GET', headers=self.restheaders, validate_certs=self.validate_certs))
-        except HTTPError as e:
-            if e.code == 404:
-                return None
-            else:
-                self.module.fail_json(
-                    msg='Could not obtain component representation %s for realm %s: %s' % (id, realm, str(e)))
-        except ValueError as e:
-            self.module.fail_json(
-                msg='API returned incorrect JSON when trying to obtain compontent representation %s for realm %s: %s'
-                    % (id, realm, str(e)))
-        except Exception as e:
-            self.module.fail_json(
-                msg='Could not obtain component representation %s for realm %s: %s' % (id, realm, str(e)))
-
-    def update_component(self, id, componentrep, realm='master'):
-        """ Update an existing component
-        :param id: id of component to be updated in Keycloak
-        :param componentrep: corresponding component representation with updates
-        :param realm: realm the component is in
-        :return: HTTPResponse object on success
-        """
-        url = URL_COMPONENT.format(url=self.baseurl, realm=realm, id=id)
-
-        try:
-            return open_url(url, method='PUT', headers=self.restheaders,
-                            data=json.dumps(componentrep), validate_certs=self.validate_certs)
-        except Exception as e:
-            self.module.fail_json(msg='Could not update component %s in realm %s: %s' % (id, realm, str(e)))
-
-    def create_component(self, componentrep, realm='master'):
-        """ Create a component in Keycloak
-
-        :param componentrep: component representation of component to be created
-        :return: HTTPResponse object on success; the Location header contains the created
-                 component id when a component was created.
-        """
-        url = URL_COMPONENTS.format(url=self.baseurl, realm=realm)
-
-        try:
-            return open_url(url, method='POST', headers=self.restheaders, data=json.dumps(componentrep),
-                            validate_certs=self.validate_certs)
-        except Exception as e:
-            self.module.fail_json(msg='Could not create component: %s' % str(e))
-
-    def delete_component(self, id, realm='master'):
-        """ Delete a component from Keycloak
-
-        :param id: id of component to be deleted
-        :param realm: realm of component to be deleted
-        :return: HTTPResponse object on success
-        """
-        client_url = URL_COMPONENT.format(url=self.baseurl, realm=realm, id=id)
-
-        try:
-            return open_url(client_url, method='DELETE', headers=self.restheaders, validate_certs=self.validate_certs)
-        except Exception as e:
-            self.module.fail_json(msg='Could not delete component %s in realm %s: %s' % (id, realm, str(e)))
 
     def get_clients(self, realm='master', filter=None):
         """ Obtains client representations for clients in a realm
