@@ -638,7 +638,8 @@ class InventoryModule(BaseInventoryPlugin):
         for container_name in self.data['inventory']:
             # Only consider containers that match the "state" filter, if self.state is not None
             if self.filter:
-                if self.filter.lower() != self._get_data_entry('inventory/{0}/state'.format(container_name)).lower():
+                state = self._get_data_entry('inventory/{0}/state'.format(container_name))
+                if state is None or self.filter.lower() != state.lower():
                     continue
             # add container
             self.inventory.add_host(container_name)
