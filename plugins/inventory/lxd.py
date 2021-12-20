@@ -669,10 +669,11 @@ class InventoryModule(BaseInventoryPlugin):
             self.inventory.add_host(instance_name)
             # add network informations
             self.build_inventory_network(instance_name)
-            # add os
-            self.inventory.set_variable(instance_name, 'ansible_lxd_os', self._get_data_entry('inventory/{0}/os'.format(instance_name)).lower())
-            # add release
-            self.inventory.set_variable(instance_name, 'ansible_lxd_release', self._get_data_entry('inventory/{0}/release'.format(instance_name)).lower())
+            # add os and release (if available)
+            for name in ('os', 'release'):
+                value = self._get_data_entry(f'inventory/{instance_name}/{name}')
+                if value:
+                    self.inventory.set_variable(instance_name, f'ansible_lxd_{name}', value.lower())
             # add profile
             self.inventory.set_variable(instance_name, 'ansible_lxd_profile', self._get_data_entry('inventory/{0}/profile'.format(instance_name)))
             # add state
