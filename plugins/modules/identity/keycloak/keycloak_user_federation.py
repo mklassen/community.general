@@ -769,6 +769,11 @@ def main():
         uuidLDAPAttribute=dict(type='str'),
         validatePasswordPolicy=dict(type='bool', default=False),
         vendor=dict(type='str'),
+        updateBaseDn=dict(type='str'),
+        updateUrl=dict(type='str'),
+        updatePrincipal=dict(type='str'),
+        updateCredential=dict(type='str', no_log=True),
+        fail=dict(type='bool', default=False),
     )
 
     mapper_spec = dict(
@@ -786,7 +791,7 @@ def main():
         realm=dict(type='str', default='master'),
         id=dict(type='str'),
         name=dict(type='str'),
-        provider_id=dict(type='str', aliases=['providerId'], choices=['ldap', 'kerberos', 'sssd']),
+        provider_id=dict(type='str', aliases=['providerId'], choices=['ldap', 'kerberos', 'sssd', 'cfmm-password-provider']),
         provider_type=dict(type='str', aliases=['providerType'], default='org.keycloak.storage.UserStorageProvider'),
         parent_id=dict(type='str', aliases=['parentId']),
         mappers=dict(type='list', elements='dict', options=mapper_spec),
