@@ -729,6 +729,33 @@ def sanitize(comp):
     return compcopy
 
 
+def compare(desired, current, test=False):
+    # compare desired setting to current, where current may have additional setting not specified in desired
+    # in which case their value is not relevant to the comparison. Otherwise the user would need to specify all
+    # possible setting instead of just the relevant settings. The plugin nature of keycloak means it is not possible
+    # to ensure all possible values are provided in desired settings, and assuming the configuration has changed
+    # because a new config setting has been added in keycloak and not to the task results in extraneous changed
+    # results.
+    try:
+        for key, value in desired.items():
+            # Credentials are not returned, so we cannot test for change and assume it was changed correctly
+            # This also means that setting credentials will always be flagged as a change in the module
+            if test and key in ('bindCredential',):
+                continue
+            flag = compare(value, current.get(key, None), test)
+            if flag:
+                if not isinstance(flag, bool):
+                    return "{key}.{flag}".format(key=key, flag=flag)
+                else:
+                    return "{key}".format(key=key)
+
+    except (TypeError, AttributeError):
+        if desired != current:
+            return True
+
+    return False
+
+
 def main():
     """
     Module execution
@@ -905,7 +932,7 @@ def main():
                     old_mapper = {}
             new_mapper = old_mapper.copy()
             new_mapper.update(change)
-            if new_mapper != old_mapper:
+            if compare(new_mapper, old_mapper):
                 if changeset.get('mappers') is None:
                     changeset['mappers'] = list()
                 changeset['mappers'].append(new_mapper)
@@ -958,10 +985,21 @@ def main():
 
             if new_mapper.get('id') is not None:
                 kc.update_component(new_mapper, realm)
+                test_mapper = kc.get_component(new_mapper.get('id'), realm)
             else:
                 if new_mapper.get('parentId') is None:
                     new_mapper['parentId'] = after_comp['id']
                 mapper = kc.create_component(new_mapper, realm)
+                test_mapper = mapper
+
+            key = compare(new_mapper, test_mapper, True)
+            if key:
+                module.fail_json(msg='Failed to update mapper {name} key {key} {a} != {b}. Cannot continue.'.format(
+                    name=new_mapper.get('name'),
+                    key=key,
+                    a=mapper.get(key, None),
+                    b=new_mapper.get(key, None)
+                ))
 
         after_comp['mappers'] = updated_mappers
         result['end_state'] = sanitize(after_comp)
@@ -974,7 +1012,7 @@ def main():
             # Process an update
 
             # no changes
-            if desired_comp == before_comp:
+            if not compare(desired_comp, before_comp):
                 result['changed'] = False
                 result['end_state'] = sanitize(desired_comp)
                 result['msg'] = "No changes required to user federation {id}.".format(id=cid)
@@ -998,10 +1036,20 @@ def main():
             for mapper in updated_mappers:
                 if mapper.get('id') is not None:
                     kc.update_component(mapper, realm)
+                    new_mapper = kc.get_component(mapper.get('id'), realm)
                 else:
                     if mapper.get('parentId') is None:
                         mapper['parentId'] = desired_comp['id']
-                    mapper = kc.create_component(mapper, realm)
+                    new_mapper = kc.create_component(mapper, realm)
+
+                key = compare(mapper, new_mapper, True)
+                if key:
+                    module.fail_json(msg='Failed to update mapper {name} key {key} {a} != {b}. Cannot continue.'.format(
+                        name=new_mapper.get('name'),
+                        key=key,
+                        a=mapper.get(key, None),
+                        b=new_mapper.get(key, None)
+                    ))
 
             after_comp['mappers'] = updated_mappers
             result['end_state'] = sanitize(after_comp)
