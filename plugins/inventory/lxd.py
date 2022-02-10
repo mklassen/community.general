@@ -737,6 +737,10 @@ class InventoryModule(BaseInventoryPlugin):
             self.inventory.set_variable(
                 instance_name, 'ansible_lxd_project', make_unsafe(self._get_data_entry('inventory/{0}/project'.format(instance_name))))
 
+            for key, value in getattr(self, 'vars', dict()).items():
+                self.inventory.set_variable(instance_name, key, value)
+
+
     def build_inventory_groups_location(self, group_name):
         """create group by attribute: location
 
