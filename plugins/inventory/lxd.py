@@ -718,6 +718,8 @@ class InventoryModule(BaseInventoryPlugin):
             # add project
             self.inventory.set_variable(instance_name, 'ansible_lxd_project', self._get_data_entry('inventory/{0}/project'.format(instance_name)))
 
+            self.inventory.set_variable(instance_name, 'ansible_lxd_host', instance_name)
+
             for key, value in getattr(self, 'vars', dict()).items():
                 self.inventory.set_variable(instance_name, key, value)
 
