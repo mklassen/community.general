@@ -689,6 +689,8 @@ class InventoryModule(BaseInventoryPlugin):
             if self._get_data_entry('inventory/{0}/vlan_ids'.format(instance_name)):
                 self.inventory.set_variable(instance_name, 'ansible_lxd_vlan_ids', self._get_data_entry('inventory/{0}/vlan_ids'.format(instance_name)))
 
+            self.inventory.set_variable(instance_name, 'ansible_lxd_host', instance_name)
+
             for key, value in self.vars.items():
                 self.inventory.set_variable(instance_name, key, value)
 
