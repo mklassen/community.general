@@ -798,6 +798,7 @@ def main():
         updateUrl=dict(type='str'),
         updatePrincipal=dict(type='str'),
         updateCredential=dict(type='str', no_log=True),
+        fail=dict(type='bool', default=False),
     )
 
     mapper_spec = dict(
