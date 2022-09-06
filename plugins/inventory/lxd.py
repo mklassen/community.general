@@ -284,7 +284,11 @@ class InventoryModule(BaseInventoryPlugin):
             try:
                 socket_connection = LXDClient(url, self.client_key, self.client_cert, self.debug)
                 if self.trust_password:
-                    socket_connection.authenticate(self.trust_password)
+                    try:
+                        socket_connection.authenticate(self.trust_password)
+                    except LXDClientException as err:
+                        if err.msg != 'Client is already trusted':
+                            raise
                 return socket_connection
             except LXDClientException as err:
                 error_storage[url] = err
