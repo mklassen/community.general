@@ -1134,4 +1134,7 @@ class InventoryModule(BaseInventoryPlugin):
             raise AnsibleParserError(
                 'All correct options required: {0}'.format(to_native(err)))
         # Call our internal helper to populate the dynamic inventory
-        self._populate()
+        try:
+            self._populate()
+        except Exception as err:
+            raise AnsibleParserError('Unable to populate: {0}'.format(to_native(err)))
