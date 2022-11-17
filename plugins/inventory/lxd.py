@@ -405,6 +405,9 @@ class InventoryModule(BaseInventoryPlugin):
                 instance_config['instances'] = self._get_config(branch, name)
                 self.data = dict_merge(instance_config, self.data)
 
+        # In case LXD server has no instances
+        self.data.setdefault('instances', {})
+
     def get_network_data(self, names):
         """Create Inventory of the instance
 
