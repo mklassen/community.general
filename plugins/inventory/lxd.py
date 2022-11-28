@@ -1146,6 +1146,12 @@ class InventoryModule(BaseInventoryPlugin):
 
         # Call our internal helper to populate the dynamic inventory
         try:
-            self._populate()
+            try:
+                self._populate()
+            except AnsibleError as err:
+                if 'No connection to the socket' in str(err):
+                    # Valid inventory, but nothing added because no connection made
+                    return
+                raise
         except Exception as err:
             raise AnsibleParserError('Unable to populate: {0}'.format(to_native(err)))
