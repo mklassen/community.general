@@ -41,7 +41,7 @@ class LXDClientException(Exception):
 
 
 class LXDClient(object):
-    def __init__(self, url, key_file=None, cert_file=None, debug=False):
+    def __init__(self, url, key_file=None, cert_file=None, debug=False, timeout=None):
         """LXD Client.
 
         :param url: The URL of the LXD server. (e.g. unix:/var/lib/lxd/unix.socket or https://127.0.0.1)
@@ -62,7 +62,12 @@ class LXDClient(object):
             parts = generic_urlparse(urlparse(self.url))
             ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
             ctx.load_cert_chain(cert_file, keyfile=key_file)
-            self.connection = HTTPSConnection(parts.get('netloc'), context=ctx)
+
+            kwargs = dict()
+            if timeout is not None:
+                kwargs['timeout'] = timeout
+
+            self.connection = HTTPSConnection(parts.get('netloc'), context=ctx, **kwargs)
         elif url.startswith('unix:'):
             unix_socket_path = url[len('unix:'):]
             self.connection = UnixHTTPConnection(unix_socket_path)
