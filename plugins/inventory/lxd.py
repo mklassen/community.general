@@ -41,6 +41,11 @@ DOCUMENTATION = r'''
             aliases: [ cert_file ]
             default: $HOME/.config/lxc/client.crt
             type: path
+        timeout:
+            description:
+            - Timeout in seconds for connection attempts.
+            default: none
+            type: int
         trust_password:
             description:
             - The client trusted password.
@@ -1098,6 +1103,7 @@ class InventoryModule(BaseInventoryPlugin):
             self.client_cert = self.get_option('client_cert')
             self.project = self.get_option('project')
             self.debug = self.DEBUG
+            self.timeout = self.get_option('timeout')
             self.data = {}  # store for inventory-data
             self.groupby = self.get_option('groupby')
             self.plugin = self.get_option('plugin')
