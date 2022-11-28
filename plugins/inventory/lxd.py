@@ -55,6 +55,11 @@ DOCUMENTATION = r'''
             type: bool
             default: true
             version_added: 8.0.0
+        timeout:
+            description:
+            - Timeout in seconds for connection attempts.
+            default: 0
+            type: int
         trust_password:
             description:
             - The client trusted password.
@@ -305,7 +310,8 @@ class InventoryModule(BaseInventoryPlugin):
         urls = (url for url in url_list if self.validate_url(url))
         for url in urls:
             try:
-                socket_connection = LXDClient(url, self.client_key, self.client_cert, self.debug, self.server_cert, self.server_check_hostname)
+                socket_connection = LXDClient(url, self.client_key, self.client_cert, self.debug,
+                                              self.server_cert, self.server_check_hostname, timeout=self.timeout)
                 if self.trust_password:
                     try:
                         socket_connection.authenticate(self.trust_password)
@@ -1123,6 +1129,7 @@ class InventoryModule(BaseInventoryPlugin):
             self.server_check_hostname = self.get_option('server_check_hostname')
             self.project = self.get_option('project')
             self.debug = self.DEBUG
+            self.timeout = self.get_option('timeout')
             self.data = {}  # store for inventory-data
             self.groupby = self.get_option('groupby')
             self.plugin = self.get_option('plugin')
