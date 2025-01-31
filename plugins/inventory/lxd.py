@@ -755,6 +755,7 @@ class InventoryModule(BaseInventoryPlugin):
 
             for key, value in getattr(self, 'vars', dict()).items():
                 self.inventory.set_variable(instance_name, key, value)
+            self.inventory.set_variable(instance_name, 'ansible_lxd_host', instance_name)
 
     def build_inventory_groups_location(self, group_name):
         """create group by attribute: location
